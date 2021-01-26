@@ -1,5 +1,5 @@
 from mycroft import MycroftSkill, intent_file_handler
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 import caldav
 import creds
 
@@ -16,32 +16,26 @@ class Nextcalendar(MycroftSkill):
 		principal = client.principal()
 		calendars = principal.calendars()
 
-		appointments = []
-		starts = []
+		# get calendar according to the selected calendar name
+		calendar = next((cal for cal in calendars if cal.name == creds.cal_name), None)
 
-		if len(calendars) > 0:
+		# get list of all upcoming events
+		future_events = calendar.date_search(start=datetime.now())
+		future_events = [i for i in future_events if
+						 i.instance.vevent.dtstart.value > datetime.now(timezone.utc).astimezone()]
 
-			for calendar in calendars:
-				events = calendar.date_search(datetime.now())
-				if(len(events)>0):
-					event = events[0]
-					event.load()
-					e = event.instance.vevent
-					appointments.append(e)
-					starts.append(e.dtstart.value)
-
-			if(len(starts)==0):
-				self.speak("You haven't got an upcoming appointment")
-			else:
-				earliest = min(starts)
-				earliest_appointment = appointments[starts.index(earliest)]
-
-				start = (earliest_appointment.dtstart.value)
-				summary = (earliest_appointment.summary.value)
-				output = f"Your next appointment is on {(start).strftime('%B')} {(start).strftime('%d')}, {(start).strftime('%y')} at {(start).strftime('%H:%M')} and is entitled {summary}."
-				self.speak(output)
-		else:
+		if (len(future_events) == 0):
 			self.speak("You haven't got an upcoming appointment")
+		else:
+			# sort events by their start date
+			future_events.sort(key=lambda x: x.instance.vevent.dtstart.value)
+			next_appointment = future_events[0].instance.vevent
+
+			start = (next_appointment.dtstart.value)
+			summary = (next_appointment.summary.value)
+
+			output = f"Your next appointment is on {(start).strftime('%B')} {(start).strftime('%d')}, {(start).strftime('%y')} at {(start).strftime('%H:%M')} and is entitled {summary}."
+			self.speak(output)
 
 
 def create_skill():
