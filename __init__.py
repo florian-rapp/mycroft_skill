@@ -22,7 +22,7 @@ class Nextcalendar(MycroftSkill):
 		# get list of all upcoming events
 		future_events = calendar.date_search(start=datetime.now())
 		future_events = [i for i in future_events if
-						 i.instance.vevent.dtstart.value > datetime.now(timezone.utc).astimezone()]
+						 i.instance.vevent.dtstart.value.astimezone() > datetime.now(timezone.utc).astimezone()]
 
 		if (len(future_events) == 0):
 			self.speak("You haven't got an upcoming appointment")
