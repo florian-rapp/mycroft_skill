@@ -7,13 +7,35 @@ import importlib
 
 
 class Nextcalendar(MycroftSkill):
+	"""A Collection of useful funktions and five mycroft skills
+
+	This class provides five Mycorft skills which are all related to a nextcloud calendar.
+	The first skill allows the user to change the calendar on which the actions will apply.
+	The second skill allows the user to ask for the next upcoming Appointment.
+	The third skill allows the user to create an Appointment.
+	The fourth skill allows the user to delete an Appointment.
+	The fifth skill allows the user to modify an Appointment.
+	The last skill allows the user to get the Appointments of a specific day.
+
+	"""
+
+
+
+
 	def __init__(self):
+		"""Inits class"""
 		MycroftSkill.__init__(self)
 
 
 	# reads user and password, which are stored in the creds.py file, to access nextcloud (from next.social-robot.info)
 	# returns a list of all calendars of the user
 	def get_calendars(self):
+		"""Gets calendars from CalDav-Url.
+
+		Returns:
+			A list of calendars.
+
+		"""
 		url = f"https://{creds.user}:{creds.pw}@next.social-robot.info/nc/remote.php/dav"
 
 		client = caldav.DAVClient(url)
@@ -25,40 +47,87 @@ class Nextcalendar(MycroftSkill):
 	# uses the calendars list returned from get_calendars and searches for the calendar specified in the creds file
 	# returns the calendar object or asks for the correct calendar name (if it can't find a fitting calendar)
 	def get_calendar(self):
+		"""Gets calendar from calendars with the set name
+
+		Return:
+			A calendar.
+
+
+		"""
 		calendars = self.get_calendars()
 		calendar = next((cal for cal in calendars if cal.name.lower() == creds.cal_name.lower()), None)
 		if calendar is None:
 			self.change_calendar(f"You don't have an calendar called {creds.cal_name}. "
 								 f"Please tell me another existing calendar name")
 		else:
-			return calendar	
-	
+			return calendar
 
 	# takes a calendar object as parameter
+	# optional parameters start and end datime objects, which specify when the event should start
+	# respects the time values of the start and end parameters
 	# returns a list of all events (event objects) stored in the calendar, which are lying in the future
-	def get_future_events(self, calendar):
-		future_events = calendar.date_search(start=datetime.now())
-		future_events = [i for i in future_events if
-						 i.instance.vevent.dtstart.value.astimezone() > datetime.now(timezone.utc).astimezone()]
-		return future_events
-		
+	def get_events(self, calendar, start: datetime = None, end: datetime = None):
+		"""Gets all events between start and end time.
+
+		Args:
+			calendar:
+				A calendar object where the events are stored.
+			start:
+				Optional; A datetime object representing the start time.
+			end:
+				Optional; A datetime object representing the end time.
+
+		Returns:
+			 A filtered list of the events in the given time span.
+		"""
+		if start is None:
+			return calendar.events()
+		if start is not None:
+			filtered_events = calendar.date_search(start=start, end=end)
+			filtered_events = [i for i in filtered_events if
+							   i.instance.vevent.dtstart.value.astimezone() >= start.astimezone()]
+			if end is not None:
+				filtered_events = [i for i in filtered_events if
+								   i.instance.vevent.dtstart.value.astimezone() <= end.astimezone()]
+			return filtered_events
+
 
 	# takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a date
 	# repeats the request, if it can't extract a date from the users input
 	# returns the extracted datetime object
 	def get_datetime_from_user(self, response_text):
+		"""Gets the input of the user and parse it to a datetime.
+
+		Args:
+			response_text: A string representing the phrase said by Mycroft.
+
+		Returns:
+			If the string couldn't be parsed the function calls it self another time.
+
+			A datetime object.
+
+
+
+
+		"""
 		user_input = self.get_response(response_text)
 		extracted_datetime = extract_datetime(user_input)
 		if extracted_datetime is None:
 			return self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
 		else:
 			return extracted_datetime[0]
-			
+
 
 	# takes a event object as parameter
 	# asks the user, which attribute(s) should get changed until the user doesn't want to change anything
 	# saves the modified event
 	def modify_event(self, to_edit_event):
+		"""TODO
+
+
+
+
+		"""
 		change_att = self.get_response(f"Found appointment {to_edit_event.instance.vevent.summary.value}. "
 									   f"Which attribute do you want to change?")
 		if change_att == "start":
@@ -86,6 +155,14 @@ class Nextcalendar(MycroftSkill):
 	# takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a calendar name
 	# changes and saves the cal_name value in the creds file and reimports it
 	def change_calendar(self, response_text):
+		"""Changes the calendar from nextcloud on which the actions of the functions are performed
+		by changing and saving the cal_name value in the creds file and reimporting it.
+
+		Args:
+			response_text:
+				A string representing the phrase said by Mycroft.
+
+		"""
 		cal_name = self.get_response(response_text)
 		if next((cal for cal in self.get_calendars() if cal.name.lower() == cal_name.lower()), None) is None:
 			self.change_calendar(f"You don't have an calendar called {cal_name}. "
@@ -106,16 +183,28 @@ class Nextcalendar(MycroftSkill):
 	# calls change_calendar method to change the used calendar
 	@intent_file_handler('change.intent')
 	def handle_change(self, message):
-		self.change_calendar("Tell me the name of the calendar you want to use")	
+		"""TODO
+
+
+
+
+		"""
+		self.change_calendar("Tell me the name of the calendar you want to use")
 
 
 	# gets executed after user inputs, which asks mycroft to inform the user about his next appointment
 	@intent_file_handler('nextcalendar.intent')
 	def handle_nextcalendar(self, message):
+		"""TODO
+
+
+
+
+		"""
 		calendar = self.get_calendar()
 
 		# get list of all upcoming events
-		future_events = self.get_future_events(calendar)
+		future_events = self.get_events(calendar, datetime.now().astimezone())
 
 		if (len(future_events) == 0):
 			self.speak("You haven't got an upcoming appointment")
@@ -149,6 +238,12 @@ class Nextcalendar(MycroftSkill):
 	# gets executed after user inputs, which asks mycroft to create a new appointment
 	@intent_file_handler('create.intent')
 	def handle_create(self, message):
+		"""TODO
+
+
+
+
+		"""
 		calendar = self.get_calendar()
 
 		# get attributes for new appointment from user
@@ -177,8 +272,14 @@ END:VCALENDAR
 	# gets executed after user inputs, which asks mycroft to create a new appointment
 	@intent_file_handler('delete.intent')
 	def handle_delete(self, message):
+		"""TODO
+
+
+
+
+		"""
 		calendar = self.get_calendar()
-		future_events = self.get_future_events(calendar)
+		future_events = self.get_events(calendar)
 
 		# ask the user for the name of the event
 		to_delete_name = self.get_response("How is the event called?")
@@ -207,8 +308,14 @@ END:VCALENDAR
 	# gets executed after user inputs, which asks mycroft to modify an existing appointment
 	@intent_file_handler("modify.intent")
 	def handle_modify(self, message):
+		"""TODO
+
+
+
+
+		"""
 		calendar = self.get_calendar()
-		future_events = self.get_future_events(calendar)
+		future_events = self.get_events(calendar)
 
 		# asks user for the event name
 		to_edit_name = self.get_response("How is the event called?")
@@ -235,8 +342,36 @@ END:VCALENDAR
 		# checking if a match was found and calling the modify_event method to change the events attributes
 		if type(to_edit_event) == caldav.objects.Event:
 			self.modify_event(to_edit_event)
-			
-	
-	
+
+	@intent_file_handler("getday.intent")
+	def handle_getday(self, message):
+		"""TODO
+
+
+
+
+		"""
+		calendar = self.get_calendar()
+
+
+
+		to_edit_date = self.get_datetime_from_user("Tell me the date.")
+
+		starttime = to_edit_date.ChangeTime(0, 0, 0, 0)
+
+		endtime = to_edit_date.ChangeTime(23, 59, 59, 999)
+
+		future_events = self.get_future_events(calendar, starttime.astimezone(), endtime.astimezone())
+
+		to_output_events = []
+
+		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
+
+		if len(to_output_events) == 0:
+			self.speak(f"Couldnt find an appointment at {to_edit_date}.")
+		elif len(to_output_events) == 1:
+			self.speak(f"I've found one appointment at {to_edit_date}.")
+
+
 def create_skill():
     return Nextcalendar()
