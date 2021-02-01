@@ -315,22 +315,29 @@ END:VCALENDAR
 	@intent_file_handler("getday.intent")
 	def handle_getday(self, message):
 		"""Informs the user of the events on a specific day.
-		"""
+        """
 		calendar = self.get_calendar()
 
-		to_edit_date = self.get_datetime_from_user("Tell me the date.")
+		to_get_date = None
 
-		starttime = to_edit_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
+		extracted_datetime = extract_datetime(message.data.get('date'))
+		if extracted_datetime is None:
+			self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
+		else:
+			to_get_date = extract_datetime
 
-		endtime = to_edit_date.replace(hour=23, minute=59, second=59, microsecond=999).astimezone()
+		starttime = to_get_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
+
+		endtime = to_get_date.replace(hour=23, minute=59, second=59, microsecond=999).astimezone()
+
 
 		future_events = self.get_events(calendar, starttime.astimezone(), endtime.astimezone())
 
-		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
+		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_get_date]
 
 		if len(matches) == 0:
-			self.speak(f"Couldnt find an appointment at {to_edit_date.strftime('%B')} {to_edit_date.strftime('%d')} "
-					   f"{to_edit_date.strftime('%y')}.")
+			self.speak(f"Couldnt find an appointment at {to_get_date.strftime('%B')} {to_get_date.strftime('%d')} "
+					   f"{to_get_date.strftime('%y')}.")
 		elif len(matches) == 1:
 			# self.speak(f"I've found one appointment at {to_edit_date}.")
 			start = (matches[0].dtstart.value)
@@ -342,9 +349,8 @@ END:VCALENDAR
 			appointments_string = " ".join(x.instance.vevent.summary.value + ", "
 												 for x in matches[:-1])
 			self.speak(f"I've found more than one appointment at {to_edit_date.strftime('%B')} "
-					   f"{to_edit_date.strftime('%d')} {(start).strftime('%y')}. They are entitled "
+					   f"{to_get_date.strftime('%d')} {(to_get_date).strftime('%y')}. They are entitled "
 					   f"{appointments_string}and {matches[-1].instance.vevent.summary.value}.")
-
 
 
 def create_skill():
