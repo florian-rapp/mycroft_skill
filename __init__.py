@@ -314,25 +314,31 @@ END:VCALENDAR
 	@intent_file_handler("getday.intent")
 	def handle_getday(self, message):
 		"""Informs the user of the events on a specific day.
-		"""
+        """
 		calendar = self.get_calendar()
 
-		to_edit_date = self.get_datetime_from_user("Tell me the date.")
+		to_get_date = None
 
-		starttime = to_edit_date.ChangeTime(0, 0, 0, 0)
+		extracted_datetime = extract_datetime(message.data.get('date'))
+		if extracted_datetime is None:
+			self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
+		else:
+			to_get_date = extract_datetime
 
-		endtime = to_edit_date.ChangeTime(23, 59, 59, 999)
+		starttime = to_get_date.ChangeTime(0, 0, 0, 0)
+
+		endtime = to_get_date.ChangeTime(23, 59, 59, 999)
 
 		future_events = self.get_future_events(calendar, starttime.astimezone(), endtime.astimezone())
 
-		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
+		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_get_date]
 
 		if len(matches) == 0:
-			self.speak(f"Couldnt find an appointment at {to_edit_date}.")
+			self.speak(f"Couldnt find an appointment at {to_get_date}.")
 		elif len(matches) == 1:
-			self.speak(f"I've found one appointment at {to_edit_date}.")
+			self.speak(f"I've found one appointment at {to_get_date}.")
 		elif len(matches) > 1:
-			self.speak(f"I've found more than one appointment at {to_edit_date}.")
+			self.speak(f"I've found more than one appointment at {to_get_date}.")
 
 
 def create_skill():
