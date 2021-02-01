@@ -320,11 +320,12 @@ END:VCALENDAR
 
 		to_get_date = None
 
-		extracted_datetime = extract_datetime(message.data.get('date'))[0]
-		if extracted_datetime is None:
+		# extracted_datetime = extract_datetime(message.data.get('date'))[0]
+		if message.data.get('date') is None:
 			to_get_date = self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
 		else:
-			to_get_date = extract_datetime
+			# to_get_date = extract_datetime
+			to_get_date = extract_datetime(message.data.get('date'))[0]
 
 		starttime = to_get_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
 
