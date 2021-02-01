@@ -1,5 +1,5 @@
 from mycroft import MycroftSkill, intent_file_handler
-from datetime import datetime, timedelta, time, timezone
+from datetime import datetime, timedelta, time, timezone, date
 import caldav
 import creds
 from mycroft.util.parse import extract_datetime
@@ -59,7 +59,7 @@ class Nextcalendar(MycroftSkill):
 	# optional parameters start and end datime objects, which specify when the event should start
 	# respects the time values of the start and end parameters
 	# returns a list of all events (event objects) stored in the calendar, which are lying in the future
-	def get_events(self, calendar, start: datetime = None, end: datetime = None):
+	def get_events(self, calendar: caldav.objects.Calendar, start: datetime = None, end: datetime = None):
 		"""Gets all events between start and end time.
 
 		Args:
@@ -76,9 +76,19 @@ class Nextcalendar(MycroftSkill):
 		if start is None:
 			return calendar.events()
 		if start is not None:
-			filtered_events = calendar.date_search(start=start, end=end)
-			filtered_events = [i for i in filtered_events if
-							   i.instance.vevent.dtstart.value.astimezone() >= start.astimezone()]
+
+			filtered_events = []
+			# get events between dates
+			date_events = calendar.date_search(start=start, end=end)
+
+			# compare time sensitive
+			for ev in date_events:
+				ev_start = ev.instance.vevent.dtstart.value
+				if isinstance(ev_start, date):
+					ev.instance.vevent.dtstart.value = datetime.combine(ev_start, datetime.min.time())
+				if ev.instance.vevent.dtstart.value.astimezone() >= start.astimezone():
+					filtered_events.append(ev)
+
 			if end is not None:
 				filtered_events = [i for i in filtered_events if
 								   i.instance.vevent.dtstart.value.astimezone() <= end.astimezone()]
@@ -110,7 +120,7 @@ class Nextcalendar(MycroftSkill):
 	# takes a event object as parameter
 	# asks the user, which attribute(s) should get changed until the user doesn't want to change anything
 	# saves the modified event
-	def modify_event(self, to_edit_event):
+	def modify_event(self, to_edit_event: caldav.objects.Event):
 		"""modifies an event object.
 
 		Args: A event object representing the modified object.
@@ -355,4 +365,4 @@ END:VCALENDAR
 
 
 def create_skill():
-    return Nextcalendar()
+	return Nextcalendar()
