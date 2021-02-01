@@ -31,7 +31,8 @@ class Nextcalendar(MycroftSkill):
 		Returns:
 			A list of calendars.
 		"""
-		url = f"https://{creds.user}:{creds.pw}@next.social-robot.info/nc/remote.php/dav"
+		# combining the username, password and nextcloud url (saved in local creds file)
+		url = f"https://{creds.user}:{creds.pw}@{creds.url}/nc/remote.php/dav"
 
 		client = caldav.DAVClient(url)
 		principal = client.principal()
@@ -166,7 +167,7 @@ class Nextcalendar(MycroftSkill):
 		else:
 			creds_file = open("creds.py", "r")
 			list_of_lines = creds_file.readlines()
-			list_of_lines[2] = f"cal_name = '{cal_name}'"
+			list_of_lines[3] = f"cal_name = '{cal_name}'"
 
 			creds_file = open("creds.py", "w")
 			creds_file.writelines(list_of_lines)
