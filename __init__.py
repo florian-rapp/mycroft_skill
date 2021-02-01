@@ -16,11 +16,7 @@ class Nextcalendar(MycroftSkill):
 	The fourth skill allows the user to delete an Appointment.
 	The fifth skill allows the user to modify an Appointment.
 	The last skill allows the user to get the Appointments of a specific day.
-
 	"""
-
-
-
 
 	def __init__(self):
 		"""Inits class"""
@@ -34,7 +30,6 @@ class Nextcalendar(MycroftSkill):
 
 		Returns:
 			A list of calendars.
-
 		"""
 		url = f"https://{creds.user}:{creds.pw}@next.social-robot.info/nc/remote.php/dav"
 
@@ -49,10 +44,8 @@ class Nextcalendar(MycroftSkill):
 	def get_calendar(self):
 		"""Gets calendar from calendars with the set name
 
-		Return:
+		Returns:
 			A calendar.
-
-
 		"""
 		calendars = self.get_calendars()
 		calendar = next((cal for cal in calendars if cal.name.lower() == creds.cal_name.lower()), None)
@@ -95,7 +88,7 @@ class Nextcalendar(MycroftSkill):
 	# takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a date
 	# repeats the request, if it can't extract a date from the users input
 	# returns the extracted datetime object
-	def get_datetime_from_user(self, response_text):
+	def get_datetime_from_user(self, response_text: str):
 		"""Gets the input of the user and parse it to a datetime.
 
 		Args:
@@ -105,10 +98,6 @@ class Nextcalendar(MycroftSkill):
 			If the string couldn't be parsed the function calls it self another time.
 
 			A datetime object.
-
-
-
-
 		"""
 		user_input = self.get_response(response_text)
 		extracted_datetime = extract_datetime(user_input)
@@ -122,11 +111,9 @@ class Nextcalendar(MycroftSkill):
 	# asks the user, which attribute(s) should get changed until the user doesn't want to change anything
 	# saves the modified event
 	def modify_event(self, to_edit_event):
-		"""TODO
+		"""modifies an event object.
 
-
-
-
+		Args: A event object representing the modified object.
 		"""
 		change_att = self.get_response(f"Found appointment {to_edit_event.instance.vevent.summary.value}. "
 									   f"Which attribute do you want to change?")
@@ -154,14 +141,13 @@ class Nextcalendar(MycroftSkill):
 
 	# takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a calendar name
 	# changes and saves the cal_name value in the creds file and reimports it
-	def change_calendar(self, response_text):
+	def change_calendar(self, response_text: str):
 		"""Changes the calendar from nextcloud on which the actions of the functions are performed
 		by changing and saving the cal_name value in the creds file and reimporting it.
 
 		Args:
 			response_text:
 				A string representing the phrase said by Mycroft.
-
 		"""
 		cal_name = self.get_response(response_text)
 		if next((cal for cal in self.get_calendars() if cal.name.lower() == cal_name.lower()), None) is None:
@@ -183,11 +169,7 @@ class Nextcalendar(MycroftSkill):
 	# calls change_calendar method to change the used calendar
 	@intent_file_handler('change.intent')
 	def handle_change(self, message):
-		"""TODO
-
-
-
-
+		"""Handles the change an event skill.
 		"""
 		self.change_calendar("Tell me the name of the calendar you want to use")
 
@@ -195,11 +177,7 @@ class Nextcalendar(MycroftSkill):
 	# gets executed after user inputs, which asks mycroft to inform the user about his next appointment
 	@intent_file_handler('nextcalendar.intent')
 	def handle_nextcalendar(self, message):
-		"""TODO
-
-
-
-
+		"""Informs the User about the next upcoming event.
 		"""
 		calendar = self.get_calendar()
 
@@ -238,11 +216,7 @@ class Nextcalendar(MycroftSkill):
 	# gets executed after user inputs, which asks mycroft to create a new appointment
 	@intent_file_handler('create.intent')
 	def handle_create(self, message):
-		"""TODO
-
-
-
-
+		"""Creates an event with given name, start date and end date.
 		"""
 		calendar = self.get_calendar()
 
@@ -272,11 +246,8 @@ END:VCALENDAR
 	# gets executed after user inputs, which asks mycroft to create a new appointment
 	@intent_file_handler('delete.intent')
 	def handle_delete(self, message):
-		"""TODO
-
-
-
-
+		"""Deletes an event with given name.
+		If more than one event exists with given name the date will be added to the filter.
 		"""
 		calendar = self.get_calendar()
 		future_events = self.get_events(calendar)
@@ -308,11 +279,8 @@ END:VCALENDAR
 	# gets executed after user inputs, which asks mycroft to modify an existing appointment
 	@intent_file_handler("modify.intent")
 	def handle_modify(self, message):
-		"""TODO
-
-
-
-
+		"""Modifies an event with given name.
+		If more than one event exists with the given name the date will be added to the filter.
 		"""
 		calendar = self.get_calendar()
 		future_events = self.get_events(calendar)
@@ -345,15 +313,9 @@ END:VCALENDAR
 
 	@intent_file_handler("getday.intent")
 	def handle_getday(self, message):
-		"""TODO
-
-
-
-
+		"""Informs the user of the events on a specific day.
 		"""
 		calendar = self.get_calendar()
-
-
 
 		to_edit_date = self.get_datetime_from_user("Tell me the date.")
 
@@ -363,14 +325,14 @@ END:VCALENDAR
 
 		future_events = self.get_future_events(calendar, starttime.astimezone(), endtime.astimezone())
 
-		to_output_events = []
-
 		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
 
-		if len(to_output_events) == 0:
+		if len(matches) == 0:
 			self.speak(f"Couldnt find an appointment at {to_edit_date}.")
-		elif len(to_output_events) == 1:
+		elif len(matches) == 1:
 			self.speak(f"I've found one appointment at {to_edit_date}.")
+		elif len(matches) > 1:
+			self.speak(f"I've found more than one appointment at {to_edit_date}.")
 
 
 def create_skill():
