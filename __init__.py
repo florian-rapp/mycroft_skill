@@ -311,6 +311,7 @@ END:VCALENDAR
 		if type(to_edit_event) == caldav.objects.Event:
 			self.modify_event(to_edit_event)
 
+
 	@intent_file_handler("getday.intent")
 	def handle_getday(self, message):
 		"""Informs the user of the events on a specific day.
@@ -319,20 +320,31 @@ END:VCALENDAR
 
 		to_edit_date = self.get_datetime_from_user("Tell me the date.")
 
-		starttime = to_edit_date.ChangeTime(0, 0, 0, 0)
+		starttime = to_edit_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
 
-		endtime = to_edit_date.ChangeTime(23, 59, 59, 999)
+		endtime = to_edit_date.replace(hour=23, minute=59, second=59, microsecond=999).astimezone()
 
-		future_events = self.get_future_events(calendar, starttime.astimezone(), endtime.astimezone())
+		future_events = self.get_events(calendar, starttime.astimezone(), endtime.astimezone())
 
 		matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
 
 		if len(matches) == 0:
-			self.speak(f"Couldnt find an appointment at {to_edit_date}.")
+			self.speak(f"Couldnt find an appointment at {to_edit_date.strftime('%B')} {to_edit_date.strftime('%d')} "
+					   f"{to_edit_date.strftime('%y')}.")
 		elif len(matches) == 1:
-			self.speak(f"I've found one appointment at {to_edit_date}.")
+			# self.speak(f"I've found one appointment at {to_edit_date}.")
+			start = (matches[0].dtstart.value)
+			summary = (matches[0].summary.value)
+			output = f"You've got one appointment on {(start).strftime('%B')} {(start).strftime('%d')}, " \
+					 f"{(start).strftime('%y')} at {(start).strftime('%H:%M')} and it is entitled {summary}."
+			self.speak(output)
 		elif len(matches) > 1:
-			self.speak(f"I've found more than one appointment at {to_edit_date}.")
+			appointments_string = " ".join(x.instance.vevent.summary.value + ", "
+												 for x in matches[:-1])
+			self.speak(f"I've found more than one appointment at {to_edit_date.strftime('%B')} "
+					   f"{to_edit_date.strftime('%d')} {(start).strftime('%y')}. They are entitled "
+					   f"{appointments_string}and {matches[-1].instance.vevent.summary.value}.")
+
 
 
 def create_skill():
