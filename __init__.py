@@ -4,221 +4,52 @@ import caldav
 import creds
 from mycroft.util.parse import extract_datetime
 import importlib
+import helpers
 
 
 class Nextcalendar(MycroftSkill):
     """A Collection of useful funktions and five mycroft skills
 
-	This class provides five Mycorft skills which are all related to a nextcloud calendar.
-	The first skill allows the user to change the calendar on which the actions will apply.
-	The second skill allows the user to ask for the next upcoming Appointment.
-	The third skill allows the user to create an Appointment.
-	The fourth skill allows the user to delete an Appointment.
-	The fifth skill allows the user to modify an Appointment.
-	The last skill allows the user to get the Appointments of a specific day.
-	"""
+        This class provides five Mycorft skills which are all related to a nextcloud calendar.
+        The first skill allows the user to change the calendar on which the actions will apply.
+        The second skill allows the user to ask for the next upcoming Appointment.
+        The third skill allows the user to create an Appointment.
+        The fourth skill allows the user to delete an Appointment.
+        The fifth skill allows the user to modify an Appointment.
+        The last skill allows the user to get the Appointments of a specific day.
+        """
 
     def __init__(self):
         """Inits class"""
         MycroftSkill.__init__(self)
-
-    # reads user and password, which are stored in the creds.py file, to access nextcloud (from next.social-robot.info)
-    # returns a list of all calendars of the user
-    def get_calendars(self):
-        """Gets calendars from CalDav-Url.
-
-		Returns:
-			A list of calendars.
-		"""
-        # combining the username, password and nextcloud url (saved in local creds file)
-        url = f"https://{creds.user}:{creds.pw}@{creds.url}/nc/remote.php/dav"
-
-        client = caldav.DAVClient(url)
-        principal = client.principal()
-        calendars = principal.calendars()
-        return calendars
-
-    # uses the calendars list returned from get_calendars and searches for the calendar specified in the creds file
-    # returns the calendar object or asks for the correct calendar name (if it can't find a fitting calendar)
-    def get_calendar(self):
-        """Gets calendar from calendars with the set name
-
-		Returns:
-			A calendar.
-		"""
-        calendars = self.get_calendars()
-        calendar = next((cal for cal in calendars if cal.name.lower() == creds.cal_name.lower()), None)
-        if calendar is None:
-            self.change_calendar(f"You don't have an calendar called {creds.cal_name}. "
-                                 f"Please tell me another existing calendar name")
-        else:
-            return calendar
-
-    # takes a calendar object as parameter
-    # optional parameters start and end datime objects, which specify when the event should start
-    # respects the time values of the start and end parameters
-    # returns a list of all events (event objects) stored in the calendar, which are lying in the future
-    def get_events(self, calendar: caldav.objects.Calendar, start: datetime = None, end: datetime = None):
-        """Gets all events between start and end time.
-
-		Args:
-			calendar:
-				A calendar object where the events are stored.
-			start:
-				Optional; A datetime object representing the start time.
-			end:
-				Optional; A datetime object representing the end time.
-
-		Returns:
-			 A filtered list of the events in the given time span.
-		"""
-        if start is None:
-            return calendar.events()
-        if start is not None:
-
-            filtered_events = []
-            # get events between dates
-            # date_events = calendar.date_search(start=start, end=end)
-            date_events = calendar.date_search(start=start, end=end)
-
-            # compare time sensitive
-            for ev in date_events:
-                ev_start = ev.instance.vevent.dtstart.value
-                if not isinstance(ev_start, datetime):
-                    self.speak("changing date to datetime")
-                    ev.instance.vevent.dtstart.value = datetime.combine(ev_start, datetime.min.time())
-
-                if ev.instance.vevent.dtstart.value.astimezone() >= start.astimezone():
-                    filtered_events.append(ev)
-
-            if end is not None:
-                filtered_events = [i for i in filtered_events if
-                                   i.instance.vevent.dtstart.value.astimezone() <= end.astimezone()]
-            return filtered_events
-
-    # takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a date
-    # repeats the request, if it can't extract a date from the users input
-    # returns the extracted datetime object
-    def get_datetime_from_user(self, response_text: str):
-        """Gets the input of the user and parse it to a datetime.
-
-		Args:
-			response_text: A string representing the phrase said by Mycroft.
-
-		Returns:
-			If the string couldn't be parsed the function calls it self another time.
-
-			A datetime object.
-		"""
-        user_input = self.get_response(response_text)
-        if user_input is None:
-            return self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
-
-        extracted_datetime = extract_datetime(user_input)
-        if extracted_datetime is None:
-            return self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
-        else:
-            return extracted_datetime[0]
-
-    # takes a event object as parameter
-    # asks the user, which attribute(s) should get changed until the user doesn't want to change anything
-    # saves the modified event
-    def modify_event(self, to_edit_event: caldav.objects.Event):
-        """modifies an event object.
-
-		Args: A event object representing the modified object.
-		"""
-        change_att = self.get_response(f"Found appointment {to_edit_event.instance.vevent.summary.value}. "
-                                       f"Which attribute do you want to change?")
-        if change_att == "start":
-            # start = self.get_response("When should it start?")
-            # to_edit_event.instance.vevent.dtstart.value = extract_datetime(start)[0]
-            to_edit_event.instance.vevent.dtstart.value = self.get_datetime_from_user("When should it start?")
-            to_edit_event.save()
-            self.speak(f"Successfully modified your appointment")
-        elif change_att == "end":
-            # end = self.get_response("When should it end?")
-            # to_edit_event.instance.vevent.dtend.value = extract_datetime(end)[0]
-            to_edit_event.instance.vevent.dtend.value = self.get_datetime_from_user("When should it end?")
-            to_edit_event.save()
-            self.speak(f"Successfully modified your appointment")
-        elif change_att == "name":
-            name = self.get_response("How should I call it?")
-            to_edit_event.instance.vevent.summary.value = name
-            to_edit_event.save()
-            self.speak(f"Successfully modified your appointment")
-        again = self.get_response(f"Do you want to change another attribute?")
-        if again == "yes":
-            self.modify_event(to_edit_event)
-
-    # takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a calendar name
-    # changes and saves the cal_name value in the creds file and reimports it
-    def change_calendar(self, response_text: str, cal_name:str = None):
-        """Changes the calendar from nextcloud on which the actions of the functions are performed
-		by changing and saving the cal_name value in the creds file and reimporting it.
-
-		Args:
-			response_text:
-				A string representing the phrase said by Mycroft.
-		"""
-        if cal_name is None:
-            cal_name = self.get_response(response_text)
-
-        if next((cal for cal in self.get_calendars() if cal.name.lower() == cal_name.lower()), None) is None:
-            self.change_calendar(f"You don't have an calendar called {cal_name}. "
-                                 f"Please tell me another existing calendar name")
-        else:
-            creds_file = open("creds.py", "r")
-            list_of_lines = creds_file.readlines()
-            list_of_lines[3] = f"cal_name = '{cal_name}'"
-
-            creds_file = open("creds.py", "w")
-            creds_file.writelines(list_of_lines)
-            creds_file.close()
-            importlib.reload(creds)
-            self.speak(f"Successfully changed to calendar {cal_name}")
-
-    def extract_datetime_from_message(self, message, attribute_name, response_text):
-        extracted_datetime = message.data.get(attribute_name)
-        if extracted_datetime is not None:
-            extracted_datetime = extract_datetime(extracted_datetime)[0]
-            if extracted_datetime is None:
-                extracted_datetime = self.get_datetime_from_user(f"Couldn't understand the date. Please repeat.")
-        else:
-            extracted_datetime = self.get_datetime_from_user(response_text)
-        return extracted_datetime
-
-    def get_name_from_message(self, message, attribute_name: str, name_type: str = 'appointment'):
-        name = message.data.get(attribute_name)
-        if name is None:
-            name = self.get_response(f"What's the name of the {name_type}?")
-        return name
-
 
     # gets executed after user inputs, which asks mycroft to change the calendar
     # calls change_calendar method to change the used calendar
     @intent_file_handler('change.intent')
     def handle_change(self, message):
         """Handles the change an event skill.
-		"""
+                """
         cal_name = self.get_name_from_message(message, 'new_name', 'calendar')
-        self.change_calendar("Tell me the name of the calendar you want to use", cal_name)
+        helpers.change_calendar(
+            "Tell me the name of the calendar you want to use", cal_name)
 
     # gets executed after user inputs, which asks mycroft to inform the user about his next appointment
     @intent_file_handler('nextcalendar.intent')
     def handle_nextcalendar(self, message):
         """Informs the User about the next upcoming event.
-		"""
-        calendar = self.get_calendar()
+                """
+        calendar = helpers.get_calendar()
 
         # get list of all upcoming events
-        future_events = self.get_events(calendar, datetime.now().astimezone())
+        future_events = helpers.get_events(
+            calendar, datetime.now().astimezone())
 
         if (len(future_events) == 0):
             self.speak("You haven't got an upcoming appointment")
         else:
             # sort events by their start date
-            future_events.sort(key=lambda x: x.instance.vevent.dtstart.value.astimezone())
+            future_events.sort(
+                key=lambda x: x.instance.vevent.dtstart.value.astimezone())
 
             # getting the earliest event and its important values
             earliest_appointment = future_events[0].instance.vevent
@@ -246,16 +77,17 @@ class Nextcalendar(MycroftSkill):
     @intent_file_handler('create.intent')
     def handle_create(self, message):
         """Creates an event with given name, start date and end date.
-		"""
-        calendar = self.get_calendar()
+                """
+
+        calendar = helpers.get_calendar()
 
         # get attributes for new appointment from user
-        name = self.get_name_from_message(message, "new_name")
+        name = helpers.get_name_from_message(message, "new_name")
 
-        startdate = self.extract_datetime_from_message(message, 'start_datetime', "When should it start?")\
+        startdate = helpers.extract_datetime_from_message(message, 'start_datetime', "When should it start?") \
             .strftime("%Y%m%dT%H%M%S")
 
-        enddate= self.extract_datetime_from_message(message, 'end_datetime', "When should it end?")\
+        enddate = helpers.extract_datetime_from_message(message, 'end_datetime', "When should it end?") \
             .strftime("%Y%m%dT%H%M%S")
         # enddate = self.get_datetime_from_user("When should it end").strftime("%Y%m%dT%H%M%S")
 
@@ -280,30 +112,35 @@ END:VCALENDAR
     @intent_file_handler('delete.intent')
     def handle_delete(self, message):
         """Deletes an event with given name.
-		If more than one event exists with given name the date will be added to the filter.
-		"""
-        calendar = self.get_calendar()
-        future_events = self.get_events(calendar)
+                If more than one event exists with given name the date will be added to the filter.
+                """
+        calendar = helpers.get_calendar()
+        future_events = helpers.get_events(calendar)
 
         # ask the user for the name of the event
-        to_delete_name = self.get_name_from_message(message, 'to_delete_name')
+        to_delete_name = helpers.get_name_from_message(
+            message, 'to_delete_name')
 
         # get list for all upcoming events with the specified name
-        matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower() == to_delete_name.lower()]
+        matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower(
+        ) == to_delete_name.lower()]
 
         # checking if one, none or multiple matches are found and handling the different szenarios
         if len(matches) == 0:
             self.speak(f"Can't find an appoinment called {to_delete_name}")
         elif len(matches) > 1:
-            to_delete_date = self.get_datetime_from_user(f"found multiple appointments called "
-                                                         f"{to_delete_name}. Tell me on what date and time it should"
-                                                         f" get deleted.").astimezone()
-            to_delete_event = [ev for ev in matches if ev.instance.vevent.dtstart.value.astimezone() == to_delete_date]
+            to_delete_date = helpers.get_datetime_from_user(f"found multiple appointments called "
+                                                            f"{to_delete_name}. Tell me on what date and time it should"
+                                                            f" get deleted.").astimezone()
+            to_delete_event = [
+                ev for ev in matches if ev.instance.vevent.dtstart.value.astimezone() == to_delete_date]
             if len(to_delete_event) == 0:
-                self.speak(f"Can't find an appointment called {to_delete_name} at {to_delete_date}.")
+                self.speak(
+                    f"Can't find an appointment called {to_delete_name} at {to_delete_date}.")
             else:
                 to_delete_event[0].delete()
-                self.speak(f"Succesfully deleted the appointment {to_delete_name}")
+                self.speak(
+                    f"Succesfully deleted the appointment {to_delete_name}")
         elif len(matches) == 1:
             matches[0].delete()
             self.speak(f"Succesfully deleted the appointment {to_delete_name}")
@@ -311,29 +148,33 @@ END:VCALENDAR
     # gets executed after user inputs, which asks mycroft to modify an existing appointment
     @intent_file_handler("modify.intent")
     def handle_modify(self, message):
-        """Modifies an event with given name.
-		If more than one event exists with the given name the date will be added to the filter.
-		"""
-        calendar = self.get_calendar()
-        future_events = self.get_events(calendar)
+        """Modifies an event with given name. If more than one event exists with the given name the date /
+        will be added to the filter.
+                """
+
+        calendar = helpers.get_calendar()
+        future_events = helpers.get_events(calendar)
 
         # asks user for the event name
-        to_edit_name = self.get_name_from_message(message, "to_edit_name")
+        to_edit_name = helpers.get_name_from_message(message, "to_edit_name")
 
         # get list of events with the specified name
-        matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower() == to_edit_name.lower()]
+        matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower(
+        ) == to_edit_name.lower()]
 
         # checking if one, none or multiple matches are found and handling the different szenarios
         if len(matches) == 0:
             to_edit_event = None
             self.speak(f"Can't find an appoinment called {to_edit_name}")
         elif len(matches) > 1:
-            to_edit_date = self.get_datetime_from_user(f"found multiple appointments called "
-                                                       f"{to_edit_name}. Tell me on what date and time it should "
-                                                       f"get modified.").astimezone()
-            to_edit_event = [ev for ev in matches if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
+            to_edit_date = helpers.get_datetime_from_user(f"found multiple appointments called "
+                                                          f"{to_edit_name}. Tell me on what date and time it should "
+                                                          f"get modified.").astimezone()
+            to_edit_event = [
+                ev for ev in matches if ev.instance.vevent.dtstart.value.astimezone() == to_edit_date]
             if len(to_edit_event) == 0:
-                self.speak(f"Couldnt find an appointment called {to_edit_name} at {to_edit_date}.")
+                self.speak(
+                    f"Couldnt find an appointment called {to_edit_name} at {to_edit_date}.")
                 to_edit_event = None
             else:
                 to_edit_event = to_edit_event[0]
@@ -342,13 +183,13 @@ END:VCALENDAR
 
         # checking if a match was found and calling the modify_event method to change the events attributes
         if type(to_edit_event) == caldav.objects.Event:
-            self.modify_event(to_edit_event)
+            helpers.modify_event(to_edit_event)
 
     @intent_file_handler("getday.intent")
     def handle_getday(self, message):
         """Informs the user of the events on a specific day.
         """
-        calendar = self.get_calendar()
+        calendar = helpers.get_calendar()
 
         to_get_date = None
 
@@ -359,13 +200,17 @@ END:VCALENDAR
         #     # to_get_date = extract_datetime
         #     to_get_date = extract_datetime(message.data.get('date'))[0]
         #     # todo: check if None
-        to_get_date = self.extract_datetime_from_message(message, 'date', 'At what day?')
+        to_get_date = helpers.extract_datetime_from_message(
+            message, 'date', 'At what day?')
 
-        starttime = to_get_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
+        starttime = to_get_date.replace(
+            hour=0, minute=0, second=0, microsecond=0).astimezone()
 
-        endtime = to_get_date.replace(hour=23, minute=59, second=59, microsecond=999).astimezone()
+        endtime = to_get_date.replace(
+            hour=23, minute=59, second=59, microsecond=999).astimezone()
 
-        future_events = self.get_events(calendar, starttime.astimezone(), endtime.astimezone())
+        future_events = helpers.get_events(
+            calendar, starttime.astimezone(), endtime.astimezone())
 
         matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone().date() ==
                    to_get_date.date()]
