@@ -78,13 +78,16 @@ class Nextcalendar(MycroftSkill):
 
             filtered_events = []
             # get events between dates
+            # date_events = calendar.date_search(start=start, end=end)
             date_events = calendar.date_search(start=start, end=end)
 
             # compare time sensitive
             for ev in date_events:
                 ev_start = ev.instance.vevent.dtstart.value
-                if isinstance(ev_start, date):
+                if not isinstance(ev_start, datetime):
+                    self.speak("changing date to datetime")
                     ev.instance.vevent.dtstart.value = datetime.combine(ev_start, datetime.min.time())
+
                 if ev.instance.vevent.dtstart.value.astimezone() >= start.astimezone():
                     filtered_events.append(ev)
 
@@ -108,6 +111,9 @@ class Nextcalendar(MycroftSkill):
 			A datetime object.
 		"""
         user_input = self.get_response(response_text)
+        if user_input is None:
+            return self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
+
         extracted_datetime = extract_datetime(user_input)
         if extracted_datetime is None:
             return self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
@@ -147,7 +153,7 @@ class Nextcalendar(MycroftSkill):
 
     # takes a string as parameter, which contains the phrase mycroft should tell the user to ask for a calendar name
     # changes and saves the cal_name value in the creds file and reimports it
-    def change_calendar(self, response_text: str):
+    def change_calendar(self, response_text: str, cal_name:str = None):
         """Changes the calendar from nextcloud on which the actions of the functions are performed
 		by changing and saving the cal_name value in the creds file and reimporting it.
 
@@ -155,7 +161,9 @@ class Nextcalendar(MycroftSkill):
 			response_text:
 				A string representing the phrase said by Mycroft.
 		"""
-        cal_name = self.get_response(response_text)
+        if cal_name is None:
+            cal_name = self.get_response(response_text)
+
         if next((cal for cal in self.get_calendars() if cal.name.lower() == cal_name.lower()), None) is None:
             self.change_calendar(f"You don't have an calendar called {cal_name}. "
                                  f"Please tell me another existing calendar name")
@@ -170,13 +178,31 @@ class Nextcalendar(MycroftSkill):
             importlib.reload(creds)
             self.speak(f"Successfully changed to calendar {cal_name}")
 
+    def extract_datetime_from_message(self, message, attribute_name, response_text):
+        extracted_datetime = message.data.get(attribute_name)
+        if extracted_datetime is not None:
+            extracted_datetime = extract_datetime(extracted_datetime)[0]
+            if extracted_datetime is None:
+                extracted_datetime = self.get_datetime_from_user(f"Couldn't understand the date. Please repeat.")
+        else:
+            extracted_datetime = self.get_datetime_from_user(response_text)
+        return extracted_datetime
+
+    def get_name_from_message(self, message, attribute_name: str, name_type: str = 'appointment'):
+        name = message.data.get(attribute_name)
+        if name is None:
+            name = self.get_response(f"What's the name of the {name_type}?")
+        return name
+
+
     # gets executed after user inputs, which asks mycroft to change the calendar
     # calls change_calendar method to change the used calendar
     @intent_file_handler('change.intent')
     def handle_change(self, message):
         """Handles the change an event skill.
 		"""
-        self.change_calendar("Tell me the name of the calendar you want to use")
+        cal_name = self.get_name_from_message(message, 'new_name', 'calendar')
+        self.change_calendar("Tell me the name of the calendar you want to use", cal_name)
 
     # gets executed after user inputs, which asks mycroft to inform the user about his next appointment
     @intent_file_handler('nextcalendar.intent')
@@ -224,9 +250,14 @@ class Nextcalendar(MycroftSkill):
         calendar = self.get_calendar()
 
         # get attributes for new appointment from user
-        name = self.get_response("How should I call it?")
-        startdate = self.get_datetime_from_user("When should it start").strftime("%Y%m%dT%H%M%S")
-        enddate = self.get_datetime_from_user("When should it end").strftime("%Y%m%dT%H%M%S")
+        name = self.get_name_from_message(message, "new_name")
+
+        startdate = self.extract_datetime_from_message(message, 'start_datetime', "When should it start?")\
+            .strftime("%Y%m%dT%H%M%S")
+
+        enddate= self.extract_datetime_from_message(message, 'end_datetime', "When should it end?")\
+            .strftime("%Y%m%dT%H%M%S")
+        # enddate = self.get_datetime_from_user("When should it end").strftime("%Y%m%dT%H%M%S")
 
         createdate = datetime.now().strftime("%Y%m%dT%H%M%S")
 
@@ -255,7 +286,7 @@ END:VCALENDAR
         future_events = self.get_events(calendar)
 
         # ask the user for the name of the event
-        to_delete_name = self.get_response("How is the event called?")
+        to_delete_name = self.get_name_from_message(message, 'to_delete_name')
 
         # get list for all upcoming events with the specified name
         matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower() == to_delete_name.lower()]
@@ -287,7 +318,8 @@ END:VCALENDAR
         future_events = self.get_events(calendar)
 
         # asks user for the event name
-        to_edit_name = self.get_response("How is the event called?")
+        to_edit_name = self.get_name_from_message(message, "to_edit_name")
+
         # get list of events with the specified name
         matches = [ev for ev in future_events if ev.instance.vevent.summary.value.lower() == to_edit_name.lower()]
 
@@ -320,12 +352,14 @@ END:VCALENDAR
 
         to_get_date = None
 
-        # extracted_datetime = extract_datetime(message.data.get('date'))[0]
-        if message.data.get('date') is None:
-            to_get_date = self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
-        else:
-            # to_get_date = extract_datetime
-            to_get_date = extract_datetime(message.data.get('date'))[0]
+        # # extracted_datetime = extract_datetime(message.data.get('date'))[0]
+        # if message.data.get('date') is None:
+        #     to_get_date = self.get_datetime_from_user("Couldnt understand the time stamp. Please try again")
+        # else:
+        #     # to_get_date = extract_datetime
+        #     to_get_date = extract_datetime(message.data.get('date'))[0]
+        #     # todo: check if None
+        to_get_date = self.extract_datetime_from_message(message, 'date', 'At what day?')
 
         starttime = to_get_date.replace(hour=0, minute=0, second=0, microsecond=0).astimezone()
 
@@ -333,15 +367,16 @@ END:VCALENDAR
 
         future_events = self.get_events(calendar, starttime.astimezone(), endtime.astimezone())
 
-        matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone() == to_get_date]
+        matches = [ev for ev in future_events if ev.instance.vevent.dtstart.value.astimezone().date() ==
+                   to_get_date.date()]
 
         if len(matches) == 0:
             self.speak(f"Couldnt find an appointment at {to_get_date.strftime('%B')} {to_get_date.strftime('%d')} "
                        f"{to_get_date.strftime('%Y')}.")
         elif len(matches) == 1:
             # self.speak(f"I've found one appointment at {to_edit_date}.")
-            start = (matches[0].dtstart.value)
-            summary = (matches[0].summary.value)
+            start = (matches[0].instance.vevent.dtstart.value)
+            summary = (matches[0].instance.vevent.summary.value)
             output = f"You've got one appointment on {(start).strftime('%B')} {(start).strftime('%d')}, " \
                      f"{(start).strftime('%Y')} at {(start).strftime('%H:%M')} and it is entitled {summary}."
             self.speak(output)

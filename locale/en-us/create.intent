@@ -1,6 +1,8 @@
-Create an appointment.
-Save an event.
-Create an event.
-Save an appointment.
-Can you save an appointment?
-
+(Create | Save) an (event | appointment).
+Can you (save | create) an (appointment | event)?
+(Create | Save) an (event | appointment) (called | named) {new_name}.
+Can you (save | create) an (appointment | event) (called | named) {new_name}?
+(Create | Save) an (event | appointment) (called | named) {new_name} (starting |beginning) at {start_datetime}.
+Can you (save | create) an (appointment | event) (called | named) {new_name} (starting | beginning) at {start_datetime}?
+(Create | Save) an (event | appointment) (called | named) {new_name} (starting |beginning) at {start_datetime} and ending at {end_datetime}.
+Can you (save | create) an (appointment | event) (called | named) {new_name} (starting | beginning) at {start_datetime} and ending at {end_datetime}?

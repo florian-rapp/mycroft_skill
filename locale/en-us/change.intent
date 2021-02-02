@@ -1,3 +1,7 @@
-Change calendar.
-Use another calendar.
-Can you change the calendar?
+(Change | Use) (my | an | the) calendar.
+Can you (change | use) (my | an | the) calendar?
+(Change to | Use) (my | an | the) calendar (named | called) {new_name}.
+Can you (change to | use) (my | an | the) calendar (named | called) {new_name}?
+
+Change (my | an | the | ) calendar to {new_name}.
+Can you change (my | an | the) calendar to {new_name}?
