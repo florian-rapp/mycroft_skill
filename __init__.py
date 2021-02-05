@@ -374,7 +374,7 @@ END:VCALENDAR
                 for ev in to_delete_events:
                     ev.delete()
                 self.speak("Okay I deleted all found events")
-            elif ' one ' in del_all or '1' in del_all:
+            elif ' one ' in del_all or ' 1 ' in del_all:
                 to_delete_events[0].delete()
                 self.speak("Okay I deleted one of them")
             elif ' none ' in del_all:
