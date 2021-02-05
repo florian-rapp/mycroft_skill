@@ -1,5 +1,4 @@
-Delete an appointment.
-Delete an event.
-Remove an appointment.
-Remove an event.
-Can you delete an appointment?
+(Delete | Remove) (an | the | my) (event | appointment).
+Can you (delete | remove) (an | the | my) (event | appointment)?
+(Delete | Remove) (an | the | my) (event | appointment) (called | named) {to_delete_name}.
+Can you (delete | remove) (an | the | my) (event | appointment) (called | named) {to_delete_name}?
