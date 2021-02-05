@@ -1,5 +1,4 @@
-Modify an appointment.
-Edit an appointment.
-Edit an event.
-Modify an event.
-Can you modify an appointment?
+(Edit | Modify) (my | the | an) (event | appointment).
+(Edit | Modify) (my | the | an) (event | appointment) (called | named) {to_edit_name}.
+Can you (edit | modify) (my | the | an) (event | appointment)?
+Can you (edit | modify) (my | the | an) (event | appointment) (called | named) {to_edit_name}?

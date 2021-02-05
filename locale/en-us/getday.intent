@@ -1,4 +1,2 @@
-What are my appointments on a specific date?
-Tel me my events on a specific day.
-What are my appointments on a specific day?
-What are my appointments at { date }
+(Tell me | What are) (my | all | the) (events | appointments) ( | at) {date}.
+(Tell me | What are) (my | all | the) (events | appointments) on a specific date.
