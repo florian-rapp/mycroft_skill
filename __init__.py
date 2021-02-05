@@ -114,16 +114,17 @@ class Nextcalendar(MycroftSkill):
 		"""
         change_att = self.get_response(f"Using appointment {to_edit_event.instance.vevent.summary.value}; "
                                        f"Which attribute do you want to change?")
+        change_att = ' ' + change_att + ' '
 
-        if "start" in change_att:
+        if " start " in change_att:
             to_edit_event.instance.vevent.dtstart.value = self.get_datetime_from_user("When should it start?")
             to_edit_event.save()
             self.speak(f"Successfully modified your appointment")
-        elif "end" in change_att:
+        elif " end " in change_att:
             to_edit_event.instance.vevent.dtend.value = self.get_datetime_from_user("When should it end?")
             to_edit_event.save()
             self.speak(f"Successfully modified your appointment")
-        elif "name" in change_att:
+        elif " name " in change_att:
             name = self.get_response("How should I call it?")
             to_edit_event.instance.vevent.summary.value = name
             to_edit_event.save()
@@ -131,7 +132,8 @@ class Nextcalendar(MycroftSkill):
         else:
             self.speak("Sorry I can only modify the start, end and name attribute.")
         again = self.get_response(f"Do you want to change another attribute?")
-        if "yes" in again or "sure" in again:
+        again = ' ' + again + ' '
+        if " yes " in again or " sure " in again:
             self.modify_event(to_edit_event)
 
 
@@ -245,7 +247,7 @@ class Nextcalendar(MycroftSkill):
                                 == to_select_start]
             if len(to_select_events) == 0:
                 self.speak(f"Can't find an appointment called {selected_name} at "
-                           f"{self.get_message_from_date(to_select_event)}.")
+                           f"{self.get_message_from_date(to_select_start)}.")
                 return []
             elif len(to_select_events) == 1:
                 return to_select_events
@@ -366,14 +368,16 @@ END:VCALENDAR
             self.speak("Successfully deleted the event")
         elif len(to_delete_events)>1:
             del_all = self.get_response("Should I delete all, one or none?")
-            if del_all == 'all':
+            del_all = ' ' + del_all + ' '
+
+            if ' all ' in del_all:
                 for ev in to_delete_events:
                     ev.delete()
                 self.speak("Okay I deleted all found events")
-            elif del_all == 'one' or del_all == '1':
+            elif ' one ' in del_all or '1' in del_all:
                 to_delete_events[0].delete()
                 self.speak("Okay I deleted one of them")
-            elif del_all == 'None':
+            elif ' none ' in del_all:
                 self.speak("ok, I won't delete any of them.")
 
 
