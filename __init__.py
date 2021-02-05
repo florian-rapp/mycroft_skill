@@ -7,16 +7,12 @@ import importlib
 
 
 class Nextcalendar(MycroftSkill):
-    """A Collection of useful functions and five mycroft intent handlers
+    """A Mycroft skill with useful functions and five mycroft intent handlers.
 
-	This class provides a Mycorft skill containing five intent handlers which are all related to a nextcloud calendar.
-	The first skill allows the user to change the calendar on which the actions will apply.
-	The second skill allows the user to ask for the next upcoming Appointment.
-	The third skill allows the user to create an Appointment.
-	The fourth skill allows the user to delete an Appointment.
-	The fifth skill allows the user to modify an Appointment.
-	The last skill allows the user to get the Appointments of a specific day.
-	"""
+    This class provides a Mycorft skill containing five intent handlers which are all related to a nextcloud calendar.
+    The user can change the calender on which the actions will apply. He can also ask for his next event or his events at a specific day.
+    The user can also create, modify and delete events in his calendar.
+    """
 
     def __init__(self):
         """Inits class"""
@@ -118,15 +114,16 @@ class Nextcalendar(MycroftSkill):
 		"""
         change_att = self.get_response(f"Using appointment {to_edit_event.instance.vevent.summary.value}; "
                                        f"Which attribute do you want to change?")
-        if change_att == "start":
+
+        if "start" in change_att:
             to_edit_event.instance.vevent.dtstart.value = self.get_datetime_from_user("When should it start?")
             to_edit_event.save()
             self.speak(f"Successfully modified your appointment")
-        elif change_att == "end":
+        elif "end" in change_att:
             to_edit_event.instance.vevent.dtend.value = self.get_datetime_from_user("When should it end?")
             to_edit_event.save()
             self.speak(f"Successfully modified your appointment")
-        elif change_att == "name":
+        elif "name" in change_att:
             name = self.get_response("How should I call it?")
             to_edit_event.instance.vevent.summary.value = name
             to_edit_event.save()
@@ -134,7 +131,7 @@ class Nextcalendar(MycroftSkill):
         else:
             self.speak("Sorry I can only modify the start, end and name attribute.")
         again = self.get_response(f"Do you want to change another attribute?")
-        if again == "yes":
+        if "yes" in again or "sure" in again:
             self.modify_event(to_edit_event)
 
 
@@ -373,7 +370,7 @@ END:VCALENDAR
                 for ev in to_delete_events:
                     ev.delete()
                 self.speak("Okay I deleted all found events")
-            elif del_all == 'one':
+            elif del_all == 'one' or del_all == '1':
                 to_delete_events[0].delete()
                 self.speak("Okay I deleted one of them")
             elif del_all == 'None':
